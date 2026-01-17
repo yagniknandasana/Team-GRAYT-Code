@@ -6,6 +6,7 @@ import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 import { HEALTHCARE_CAREERS } from '../utils/skillData';
+import '../styles/Dashboard.css';
 
 const Dashboard = () => {
     const [userData, setUserData] = useState(null);
@@ -164,119 +165,200 @@ const Dashboard = () => {
     }, []);
 
     const StatCard = ({ icon: Icon, title, value, subtext, color }) => (
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-                width: '50px', height: '50px', borderRadius: '12px',
-                background: `rgba(${color}, 0.2)`, color: `rgb(${color})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem'
-            }}>
+        <div className="stat-card">
+            <div className="stat-glow" style={{ background: `rgb(${color})` }}></div>
+            <div className="stat-icon" style={{ background: `rgba(${color}, 0.2)`, color: `rgb(${color})` }}>
                 <Icon />
             </div>
-            <div>
-                <h3 style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '0.2rem' }}>{title}</h3>
-                <div style={{ fontSize: '1.8rem', fontWeight: '700', lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: '0.2rem' }}>{subtext}</div>
+            <div className="stat-content">
+                <span className="stat-title">{title}</span>
+                <div className="stat-value">{value}</div>
+                <div className="stat-subtext">{subtext}</div>
             </div>
         </div>
     );
 
-    if (loading) return <div className="text-center p-10">Loading Dashboard...</div>;
+    if (loading) return (
+        <div className="loading-container">
+            <div className="loading-spinner">
+                <div className="spinner-ring"></div>
+                <div className="spinner-ring"></div>
+                <div className="spinner-ring"></div>
+                <div className="spinner-ring"></div>
+            </div>
+            <div className="loading-text">Loading Dashboard...</div>
+        </div>
+    );
 
     const radialData = [
         { name: 'Readiness', uv: stats.readiness, fill: '#8884d8' }
     ];
 
     return (
-        <div className="container-custom animate-fade-in" style={{ paddingBottom: '2rem' }}>
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-                        Welcome back, {userData?.name || 'User'}
-                    </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>
-                        Target: <strong>{userData?.targetTitle}</strong> | Role: {userData?.role || 'Student'}
-                    </p>
-                </div>
+        <div className="dashboard-container">
+            {/* Animated Background */}
+            <div className="background-grid"></div>
+            <div className="floating-shapes">
+                <div className="shape shape-1"></div>
+                <div className="shape shape-2"></div>
+                <div className="shape shape-3"></div>
+            </div>
 
+            {/* Header */}
+            <header className="dashboard-header animate-slide-up">
+                <div className="header-content">
+                    <div className="user-info">
+                        <div className="user-avatar">
+                            {userData?.name?.charAt(0) || 'U'}
+                        </div>
+                        <div className="user-details">
+                            <h1 className="user-greeting">
+                                Welcome back, <span className="user-name">{userData?.name || 'User'}</span>
+                            </h1>
+                            <div className="user-target">
+                                <span className="target-icon"><FaTrophy /></span>
+                                <span>Target: <strong className="highlight">{userData?.targetTitle}</strong></span>
+                                <span className="role-badge">{userData?.role || 'Student'}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </header>
 
             {/* Stats Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
-                <StatCard icon={FaTrophy} title="Readiness Score" value={`${stats.readiness}%`} subtext="Match to Role" color="236, 72, 153" />
-                <StatCard icon={FaBookOpen} title="Skills Assessed" value={stats.totalRequired} subtext="Core Competencies" color="99, 102, 241" />
-                <StatCard icon={FaUserMd} title="Role Fit" value={stats.readiness > 80 ? 'High' : 'Moderate'} subtext="Based on Gaps" color="6, 182, 212" />
+            <div className="stats-grid animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                <StatCard
+                    icon={FaTrophy}
+                    title="Readiness Score"
+                    value={`${stats.readiness}%`}
+                    subtext="Match to Role"
+                    color="236, 72, 153"
+                />
+                <StatCard
+                    icon={FaBookOpen}
+                    title="Skills Assessed"
+                    value={stats.totalRequired}
+                    subtext="Core Competencies"
+                    color="99, 102, 241"
+                />
+                <StatCard
+                    icon={FaUserMd}
+                    title="Role Fit"
+                    value={stats.readiness > 80 ? 'High' : 'Moderate'}
+                    subtext="Based on Gaps"
+                    color="6, 182, 212"
+                />
             </div>
 
             {/* Charts Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+            <div className="charts-grid animate-fade-in" style={{ animationDelay: '0.4s' }}>
 
-                {/* 1. Skill Status Breakdown (Stacked Bar) */}
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Skill Proficiency Breakdown</h3>
-                    <div style={{ height: '300px', width: '100%' }}>
+                {/* 1. Skill Status Breakdown (Bar) */}
+                <div className="chart-card">
+                    <div className="chart-header">
+                        <div className="chart-title">
+                            <FaProjectDiagram className="chart-icon" />
+                            <span>Proficiency Breakdown</span>
+                        </div>
+                    </div>
+                    <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={barData} layout="vertical">
-                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
-                                <XAxis type="number" stroke="#94a3b8" />
+                            <BarChart data={barData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                                <XAxis type="number" stroke="#94a3b8" hide />
                                 <YAxis dataKey="name" type="category" stroke="#94a3b8" width={50} />
-                                <Tooltip contentStyle={{ backgroundColor: '#1e1b4b', borderColor: 'rgba(255,255,255,0.1)' }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#1e1b4b',
+                                        borderColor: 'rgba(255,255,255,0.1)',
+                                        color: '#f8fafc',
+                                        borderRadius: '8px'
+                                    }}
+                                    itemStyle={{ color: '#e2e8f0' }}
+                                />
                                 <Legend />
-                                <Bar dataKey="Good" stackId="a" fill="#22c55e" name="On Track" />
-                                <Bar dataKey="Weak" stackId="a" fill="#eab308" name="Needs Improvement" />
-                                <Bar dataKey="Missing" stackId="a" fill="#f43f5e" name="Missing Skill" />
+                                <Bar dataKey="Good" stackId="a" fill="#22c55e" name="On Track" radius={[0, 4, 4, 0]} />
+                                <Bar dataKey="Weak" stackId="a" fill="#eab308" name="Improve" />
+                                <Bar dataKey="Missing" stackId="a" fill="#f43f5e" name="Missing" radius={[4, 0, 0, 4]} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* 2. Competency Radar (User vs Required) */}
-                <div className="glass-panel" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', fontSize: '1.2rem' }}>Competency Gap Map</h3>
-                    <div style={{ height: '300px', width: '100%' }}>
+                {/* 2. Competency Radar */}
+                <div className="chart-card">
+                    <div className="chart-header">
+                        <div className="chart-title">
+                            <FaUserMd className="chart-icon" />
+                            <span>Competency Gap</span>
+                        </div>
+                    </div>
+                    <div className="chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart outerRadius="80%" data={radarData}>
+                            <RadarChart outerRadius="70%" data={radarData}>
                                 <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
                                 <Radar name="My Level" dataKey="A" stroke="#06b6d4" strokeWidth={3} fill="#06b6d4" fillOpacity={0.4} />
                                 <Radar name="Required" dataKey="B" stroke="#ec4899" strokeWidth={2} fill="transparent" strokeDasharray="5 5" />
-                                <Legend />
-                                <Tooltip contentStyle={{ backgroundColor: '#1e1b4b', borderColor: 'rgba(255,255,255,0.1)' }} />
+                                <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#1e1b4b',
+                                        borderColor: 'rgba(255,255,255,0.1)',
+                                        borderRadius: '8px'
+                                    }}
+                                />
                             </RadarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-            </div>
-
-            {/* 3. Overall Readiness Radial */}
-            <div className="glass-panel" style={{ marginTop: '2rem', padding: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap' }}>
-                <div style={{ maxWidth: '400px' }}>
-                    <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem' }}>Ready for your Career?</h3>
-                    <p style={{ color: 'var(--text-muted)' }}>
-                        You are <strong>{stats.readiness}%</strong> of the way to being job-ready for {userData?.targetTitle}.
-                        Focus on the <strong>{stats.missingCount} missing skills</strong> to boost your score efficiently.
-                    </p>
+                {/* 3. Overall Readiness Radial (Large Card) */}
+                <div className="chart-card radial-card">
+                    <div className="radial-content">
+                        <div className="radial-text">
+                            <h3 className="radial-title">Ready for your Career?</h3>
+                            <p className="radial-description">
+                                You are <strong className="highlight">{stats.readiness}%</strong> of the way to being job-ready for {userData?.targetTitle}.
+                                Focus on the <strong className="highlight">{stats.missingCount} missing skills</strong> to boost your score efficiently.
+                            </p>
+                            <div className="radial-stats">
+                                <div className="stat-item">
+                                    <span className="stat-number success">{stats.goodCount}</span>
+                                    <span className="stat-label">Strong</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span className="stat-number warning">{stats.weakCount}</span>
+                                    <span className="stat-label">Weak</span>
+                                </div>
+                                <div className="stat-item">
+                                    <span className="stat-number danger">{stats.missingCount}</span>
+                                    <span className="stat-label">Missing</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="radial-chart">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RadialBarChart innerRadius="70%" outerRadius="100%" barSize={20} data={radialData} startAngle={90} endAngle={-270}>
+                                    <RadialBar
+                                        minAngle={15}
+                                        background={{ fill: 'rgba(255,255,255,0.1)' }}
+                                        clockWise
+                                        dataKey="uv"
+                                        cornerRadius={10}
+                                        fill={stats.readiness > 75 ? '#22c55e' : stats.readiness > 40 ? '#eab308' : '#f43f5e'}
+                                    />
+                                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="radial-value" style={{ fill: 'white' }}>
+                                        {stats.readiness}%
+                                    </text>
+                                </RadialBarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
                 </div>
-                <div style={{ width: '250px', height: '250px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RadialBarChart innerRadius="70%" outerRadius="100%" barSize={20} data={radialData} startAngle={90} endAngle={-270}>
-                            <RadialBar
-                                minAngle={15}
-                                background={{ fill: 'rgba(255,255,255,0.1)' }}
-                                clockWise
-                                dataKey="uv"
-                                cornerRadius={10}
-                                fill={stats.readiness > 75 ? '#22c55e' : stats.readiness > 40 ? '#eab308' : '#f43f5e'}
-                            />
-                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="progress-label" style={{ fill: 'white', fontSize: '2rem', fontWeight: 'bold' }}>
-                                {stats.readiness}%
-                            </text>
-                        </RadialBarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
 
+            </div>
         </div>
     );
 };

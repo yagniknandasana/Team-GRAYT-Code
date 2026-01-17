@@ -1,5 +1,5 @@
 import { db } from '../firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 
 /**
  * Updates the user's skill profile when they complete a recommendation.
@@ -77,5 +77,26 @@ export const completeRecommendation = async (user, skillName, type) => {
     } catch (error) {
         console.error("Error updating skills:", error);
         return false;
+    }
+};
+
+/**
+ * Update entire user profile data
+ */
+export const updateUserProfile = async (uid, profileData) => {
+    try {
+        // Update LocalStorage
+        const existingLocal = JSON.parse(localStorage.getItem('userProfile') || '{}');
+        const updatedLocal = { ...existingLocal, ...profileData };
+        localStorage.setItem('userProfile', JSON.stringify(updatedLocal));
+
+        // Update Firestore
+        if (uid) {
+            const userRef = doc(db, "users", uid);
+            await setDoc(userRef, profileData, { merge: true });
+        }
+    } catch (error) {
+        console.error("Error updating profile:", error);
+        throw error;
     }
 };
