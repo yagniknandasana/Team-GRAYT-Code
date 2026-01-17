@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaGraduationCap, FaCode, FaBook, FaProjectDiagram, FaPlus, FaTrash } from 'react-icons/fa';
+import { db, auth } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const SetupProfile = () => {
     const navigate = useNavigate();
@@ -61,12 +63,28 @@ const SetupProfile = () => {
         setFormData({ ...formData, projects: newProjects });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Save to LocalStorage for demo purposes
-        localStorage.setItem('userProfile', JSON.stringify(formData));
-        console.log('Profile Saved:', formData);
-        navigate('/goals'); // Proceed to Goal Selection
+        try {
+            const user = auth.currentUser;
+            if (user) {
+                await setDoc(doc(db, "users", user.uid), {
+                    ...formData,
+                    email: user.email,
+                    name: user.displayName || 'User',
+                    updatedAt: new Date()
+                }, { merge: true });
+                console.log('Profile Saved to Firestore');
+                navigate('/goals');
+            } else {
+                // Fallback for dev/demo if auth fails or skipped
+                localStorage.setItem('userProfile', JSON.stringify(formData));
+                navigate('/goals');
+            }
+        } catch (error) {
+            console.error("Error writing document: ", error);
+            alert("Failed to save profile. Check console.");
+        }
     };
 
     return (

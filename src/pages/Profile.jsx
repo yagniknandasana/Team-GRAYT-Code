@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaUser, FaCode, FaBook, FaBriefcase, FaProjectDiagram } from 'react-icons/fa';
+import { db, auth } from '../firebase';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const Profile = () => {
     const [profile, setProfile] = useState({
@@ -13,16 +16,24 @@ const Profile = () => {
     });
 
     useEffect(() => {
-        // Load from LocalStorage if available
-        const savedData = localStorage.getItem('userProfile');
-        if (savedData) {
-            const parsed = JSON.parse(savedData);
-            setProfile(prev => ({
-                ...prev,
-                ...parsed,
-                // Ensure skills are mapped correctly if format differs, but we used same objects
-            }));
-        }
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const unsubDoc = onSnapshot(doc(db, "users", user.uid), (doc) => {
+                    if (doc.exists()) {
+                        setProfile(prev => ({ ...prev, ...doc.data() }));
+                    }
+                });
+                return () => unsubDoc();
+            } else {
+                // Fallback
+                const savedData = localStorage.getItem('userProfile');
+                if (savedData) {
+                    setProfile(prev => ({ ...prev, ...JSON.parse(savedData) }));
+                }
+            }
+        });
+
+        return () => unsubscribeAuth();
     }, []);
 
     return (

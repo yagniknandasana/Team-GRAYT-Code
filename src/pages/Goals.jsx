@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FaHeartbeat, FaLeaf, FaCity, FaCheckCircle, FaStethoscope, FaSpa } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { db, auth } from '../firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 const Goals = () => {
     const [selectedGoal, setSelectedGoal] = useState(null);
@@ -60,15 +62,28 @@ const Goals = () => {
         setSelectedSpecialization(null); // Reset sub-selection when changing main goal
     };
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         if (selectedGoal) {
-            // Save choices
             const goalData = {
                 domain: selectedGoal,
                 specialization: selectedSpecialization
             };
-            localStorage.setItem('userGoal', JSON.stringify(goalData));
-            navigate('/assessment');
+
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    await setDoc(doc(db, "users", user.uid), {
+                        goal: goalData
+                    }, { merge: true });
+                    navigate('/assessment');
+                } else {
+                    localStorage.setItem('userGoal', JSON.stringify(goalData));
+                    navigate('/assessment');
+                }
+            } catch (error) {
+                console.error("Error saving goal:", error);
+                navigate('/assessment'); // Continue anyway for demo
+            }
         }
     };
 
