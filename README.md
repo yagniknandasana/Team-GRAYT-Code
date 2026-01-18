@@ -95,5 +95,5 @@ Whether you are aiming for **Cardiology, Neurology, or AYUSH Medicine**, MedSkil
 
 ---
 
-## 👥 Team GRAYT
+## 👥 Team GRAYT Code 
 Built with ❤️ for the Future of Healthcare Education.
