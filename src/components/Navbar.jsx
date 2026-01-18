@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaGraduationCap, FaUser, FaChartLine, FaBullseye, FaLightbulb } from 'react-icons/fa';
+import logo from '../assets/logo.jpg';
 
 const Navbar = () => {
   const location = useLocation();
@@ -62,18 +63,12 @@ const Navbar = () => {
           gap: '0.5rem'
         }}
       >
-        <div style={{
+        <img src={logo} alt="Logo" style={{
           width: '32px',
           height: '32px',
-          background: 'var(--gradient-main)',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white'
-        }}>
-          M
-        </div>
+          borderRadius: '8px', // Optional: rounded corners like the app style
+          objectFit: 'contain'
+        }} />
         MedSkill Navigator
       </Link>
 
@@ -87,16 +82,21 @@ const Navbar = () => {
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <div style={{ width: '1px', height: '24px', background: 'var(--glass-border)' }}></div>
-        <Link
-          to="/"
+        <button
           className="glass-button"
-          style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}
+          style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem', cursor: 'pointer', border: 'none', color: 'inherit' }}
           onClick={() => {
-            import('../firebase').then(({ auth }) => auth.signOut());
+            if (window.confirm("Do you really want to log out?")) {
+              import('../firebase').then(({ auth }) => {
+                auth.signOut().then(() => {
+                  window.location.href = '/';
+                });
+              });
+            }
           }}
         >
           Logout
-        </Link>
+        </button>
       </div>
     </nav>
   );

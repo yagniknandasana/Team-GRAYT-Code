@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaCode, FaBook, FaBriefcase, FaProjectDiagram, FaGraduationCap, FaEdit, FaSave, FaPlus, FaTrash } from 'react-icons/fa';
+import { FaUser, FaCode, FaBook, FaBriefcase, FaProjectDiagram, FaGraduationCap, FaEdit, FaSave, FaPlus, FaTrash, FaBullseye } from 'react-icons/fa';
 import { db, auth } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { updateUserProfile } from '../services/userService';
+import { HEALTHCARE_CAREERS } from '../utils/skillData';
 
 const Profile = () => {
     const [profile, setProfile] = useState({
@@ -12,8 +13,10 @@ const Profile = () => {
         role: 'Student',
         education: 'Undergraduate',
         skills: [{ name: 'React', level: 'Intermediate' }],
+        skills: [{ name: 'React', level: 'Intermediate' }],
         courses: [],
-        projects: []
+        projects: [],
+        goal: { specialization: 'General Medicine' } // Default or loaded
     });
     const [isEditing, setIsEditing] = useState(false);
     const [userUid, setUserUid] = useState(null);

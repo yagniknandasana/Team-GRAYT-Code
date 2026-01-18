@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar'; // We might modify Navbar or use a simplified one, but reusing is safely efficient
 import Footer from '../components/Footer';
 import { FaUserGraduate, FaChartLine, FaRobot, FaBriefcase, FaArrowRight } from 'react-icons/fa';
+import logo from '../assets/logo.jpg';
 
 const Home = () => {
     return (
@@ -26,8 +27,11 @@ const Home = () => {
                 background: 'rgba(15, 23, 42, 0.7)',
                 borderBottom: '1px solid rgba(255,255,255,0.05)'
             }}>
-                <div style={{ fontSize: '1.5rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    MedSkill Navigator
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <img src={logo} alt="M" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        MedSkill Navigator
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     <Link to="/login" className="glass-button" style={{ border: 'none', background: 'transparent' }}>Sign In</Link>
