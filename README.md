@@ -89,6 +89,10 @@ Whether you are aiming for **Cardiology, Neurology, or AYUSH Medicine**, MedSkil
 
 ---
 
+## Prototype 
+* **Deploy Link**: https://med-skill.onrender.com
+
+---
 ## 🔒 Security
 *   **Route Protection**: Protected pages (`/dashboard`, `/profile`) are guarded by a dedicated `ProtectedRoute` component.
 *   **Data Safety**: All user data is isolated via Firestore Security Rules.
