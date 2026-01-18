@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar'; // We might modify Navbar or use a simplified one, but reusing is safely efficient
 import Footer from '../components/Footer';
 import { FaUserGraduate, FaChartLine, FaRobot, FaBriefcase, FaArrowRight } from 'react-icons/fa';
-import logo from '../assets/logo_final.jpg';
+import logo from '../assets/logo_v2.jpg';
 
 const Home = () => {
     return (

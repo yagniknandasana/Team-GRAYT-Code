@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaGraduationCap, FaUser, FaChartLine, FaBullseye, FaLightbulb } from 'react-icons/fa';
-import logo from '../assets/logo_final.jpg';
+import logo from '../assets/logo_v2.jpg';
 
 const Navbar = () => {
   const location = useLocation();
