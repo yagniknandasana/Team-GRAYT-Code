@@ -84,7 +84,7 @@ const Recommendations = () => {
             // UPDATE CACHE MANUALLY to prevent reappearance on reload
             try {
                 const userUid = auth.currentUser ? auth.currentUser.uid : 'guest';
-                const cacheKey = `rec_cache_v2_${userUid}`; // v2 matches the earlier update
+                const cacheKey = `rec_cache_v4_${userUid}`; // v4 matches the refined update
                 const cachedData = localStorage.getItem(cacheKey);
                 if (cachedData) {
                     const parsed = JSON.parse(cachedData);
@@ -180,7 +180,7 @@ const Recommendations = () => {
                 missing: missing.sort(),
                 // skillCount: userSkills.length // Simple check for changes
             });
-            const cacheKey = `rec_cache_v2_${userUid}`;
+            const cacheKey = `rec_cache_v4_${userUid}`;
 
             const cachedData = localStorage.getItem(cacheKey);
             let parsedCache = null;
@@ -271,16 +271,13 @@ const Recommendations = () => {
                     uiItems = processItems(recData.fullList);
                 } else {
                     // Fallback manual processing
-                    // ... (existing fallback logic if needed, but usually redundant if aiResult exists)
-                    // Simplified for brevity/safety:
                     uiItems = processItems([...recData.courses.map(c => ({ ...c, type: 'course' })), ...recData.projects.map(p => ({ ...p, type: 'project' }))]);
                 }
 
-                // Hard Limit total items to prevent overwhelm (Rule: "Don't gave unlimited resources")
-                // Keep max 6 items total (e.g. 2 weak, 2 missing, 2 projects)
-                if (uiItems.length > 6) {
-                    uiItems = uiItems.slice(0, 6);
-                }
+                // Hard Limit Removed
+                // if (uiItems.length > 6) {
+                //     uiItems = uiItems.slice(0, 6);
+                // }
 
                 if (uiItems.length === 0) {
                     // Only show fallback if we genuinely have gaps but no items found
