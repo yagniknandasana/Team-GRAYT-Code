@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { FaEnvelope, FaLock, FaUser, FaGoogle } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import { auth, googleProvider } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { auth, googleProvider, db } from '../firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const InputField = ({ type, placeholder, icon: Icon, value, onChange, name }) => (
     <div style={{ position: 'relative', marginBottom: '1rem' }}>
@@ -24,10 +25,20 @@ const InputField = ({ type, placeholder, icon: Icon, value, onChange, name }) =>
 );
 
 const Login = () => {
-    const [isSignup, setIsSignup] = useState(false);
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Determine if we are in "Signup" mode based on URL
+    const isSignupRoute = location.pathname === '/signup';
+    const [isSignup, setIsSignup] = useState(isSignupRoute);
+
+    // Sync state if URL changes (though usually component remounts)
+    React.useEffect(() => {
+        setIsSignup(location.pathname === '/signup');
+    }, [location.pathname]);
+
     const [formData, setFormData] = useState({ email: '', password: '', fullName: '' });
     const [error, setError] = useState('');
-    const navigate = useNavigate();
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -38,7 +49,19 @@ const Login = () => {
         setError('');
         try {
             if (isSignup) {
-                await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+                const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+                const user = userCredential.user;
+
+                // Save name to Auth Profile
+                await updateProfile(user, { displayName: formData.fullName });
+
+                // Save name to Firestore
+                await setDoc(doc(db, "users", user.uid), {
+                    name: formData.fullName,
+                    email: formData.email,
+                    createdAt: new Date().toISOString()
+                }, { merge: true });
+
                 navigate('/setup-profile');
             } else {
                 await signInWithEmailAndPassword(auth, formData.email, formData.password);
@@ -58,6 +81,15 @@ const Login = () => {
         }
     };
 
+    const toggleMode = () => {
+        // Instead of just setting state, navigate to the other route
+        if (isSignup) {
+            navigate('/login');
+        } else {
+            navigate('/signup');
+        }
+    };
+
     return (
         <div className="flex-center" style={{ minHeight: 'calc(100vh - 100px)' }}>
             <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem' }}>
@@ -73,7 +105,9 @@ const Login = () => {
                 {error && <div style={{ color: '#f43f5e', marginBottom: '1rem', textAlign: 'center', background: 'rgba(244,63,94,0.1)', padding: '0.5rem', borderRadius: '8px' }}>{error}</div>}
 
                 <form onSubmit={handleSubmit} autoComplete="off">
+                    {/* Only show Full Name in Signup Mode */}
                     {isSignup && <InputField type="text" name="fullName" placeholder="Full Name" icon={FaUser} value={formData.fullName} onChange={handleChange} />}
+
                     <InputField type="email" name="email" placeholder="Email" icon={FaEnvelope} value={formData.email} onChange={handleChange} />
                     <InputField type="password" name="password" placeholder="Password" icon={FaLock} value={formData.password} onChange={handleChange} />
 
@@ -101,7 +135,7 @@ const Login = () => {
                         {isSignup ? 'Already have an account? ' : "Don't have an account? "}
                     </span>
                     <button
-                        onClick={() => setIsSignup(!isSignup)}
+                        onClick={toggleMode}
                         style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: '600' }}
                     >
                         {isSignup ? 'Log In' : 'Sign Up'}

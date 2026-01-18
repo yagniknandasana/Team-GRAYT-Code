@@ -10,11 +10,10 @@ const Navbar = () => {
   const NavLink = ({ to, icon: Icon, children }) => (
     <Link
       to={to}
-      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-        isActive(to)
-          ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.3)]'
-          : 'text-slate-400 hover:text-white hover:bg-white/5'
-      }`}
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${isActive(to)
+        ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+        : 'text-slate-400 hover:text-white hover:bg-white/5'
+        }`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -34,7 +33,7 @@ const Navbar = () => {
   );
 
   return (
-    <nav 
+    <nav
       className="glass-panel"
       style={{
         position: 'fixed',
@@ -51,12 +50,12 @@ const Navbar = () => {
         marginTop: 0
       }}
     >
-      <Link 
-        to="/" 
+      <Link
+        to="/"
         className="text-gradient"
-        style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: '700', 
+        style={{
+          fontSize: '1.5rem',
+          fontWeight: '700',
           textDecoration: 'none',
           display: 'flex',
           alignItems: 'center',
@@ -64,18 +63,18 @@ const Navbar = () => {
         }}
       >
         <div style={{
-          width: '32px', 
-          height: '32px', 
-          background: 'var(--gradient-main)', 
+          width: '32px',
+          height: '32px',
+          background: 'var(--gradient-main)',
           borderRadius: '8px',
-          display: 'flex', 
-          alignItems: 'center', 
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           color: 'white'
         }}>
-          H
+          M
         </div>
-        HAPSIS
+        MedSkill Navigator
       </Link>
 
       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -88,10 +87,13 @@ const Navbar = () => {
 
       <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
         <div style={{ width: '1px', height: '24px', background: 'var(--glass-border)' }}></div>
-        <Link 
-          to="/login"
+        <Link
+          to="/"
           className="glass-button"
           style={{ padding: '0.5rem 1.25rem', fontSize: '0.9rem' }}
+          onClick={() => {
+            import('../firebase').then(({ auth }) => auth.signOut());
+          }}
         >
           Logout
         </Link>

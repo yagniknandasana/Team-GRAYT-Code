@@ -20,8 +20,10 @@ export const completeRecommendation = async (user, skillName, type) => {
     // Determine new level based on type
     // If it's a "Course", we assume they reached "Intermediate" (or Beginner -> Intermediate)
     // If it's a "Project", we assume they reached "Advanced" (or Intermediate -> Advanced)
-    let newLevel = "Intermediate";
-    if (type === 'project') newLevel = "Advanced";
+    // For the hackathon demo, completing ANY recommendation should effectively "master" the skill
+    // so it clears from the list.
+    let newLevel = "Advanced";
+    // if (type === 'project') newLevel = "Advanced";
 
     try {
         let currentSkills = [];

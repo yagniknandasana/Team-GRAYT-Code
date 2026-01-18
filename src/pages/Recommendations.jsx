@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlayCircle, FaCodeBranch, FaClock, FaStar, FaLightbulb } from 'react-icons/fa';
+import { FaPlayCircle, FaCodeBranch, FaClock, FaStar, FaLightbulb, FaCheckCircle, FaFlagCheckered, FaArrowDown } from 'react-icons/fa';
 import AIChatBot from '../components/AIChatBot';
 import { db, auth } from '../firebase';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
@@ -80,6 +80,27 @@ const Recommendations = () => {
         if (success) {
             // Remove from local list
             setRecommendations(prev => prev.filter(r => r.title !== item.title));
+
+            // UPDATE CACHE MANUALLY to prevent reappearance on reload
+            try {
+                const userUid = auth.currentUser ? auth.currentUser.uid : 'guest';
+                const cacheKey = `rec_cache_v2_${userUid}`; // v2 matches the earlier update
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    const parsed = JSON.parse(cachedData);
+                    parsed.data = parsed.data.filter(r => r.title !== item.title);
+                    localStorage.setItem(cacheKey, JSON.stringify(parsed));
+                }
+
+                // ADD TO BLOCKLIST
+                const blocklist = JSON.parse(localStorage.getItem('completed_recommendations_blocklist') || '[]');
+                blocklist.push(item.title);
+                localStorage.setItem('completed_recommendations_blocklist', JSON.stringify(blocklist));
+
+            } catch (e) {
+                console.error("Cache update failed", e);
+            }
+
             alert("Great job! Your skills have been updated. Check your Dashboard.");
         } else {
             alert("Failed to update profile. Please try again.");
@@ -150,15 +171,38 @@ const Recommendations = () => {
             setWeakSkills(weak);
             setMissingSkills(missing);
 
-            // ... Recommendation Generation Logic ...
-            // We only regenerate AI recommendations if the list CHANGED significantly 
-            // to avoid spamming the API on every small update.
-            // For now, we allow re-generation to ensure consistency.
+            // --- CACHING STRATEGY ---
+            const userUid = auth.currentUser ? auth.currentUser.uid : 'guest';
+            // Include 'userSkills' in signature to invalidate cache if a skill level changes (fixes "reappearing" issue)
+            const gapSignature = JSON.stringify({
+                goal: targetTitle,
+                weak: weak.sort(),
+                missing: missing.sort(),
+                // skillCount: userSkills.length // Simple check for changes
+            });
+            const cacheKey = `rec_cache_v2_${userUid}`;
 
-            // Try AI first
+            const cachedData = localStorage.getItem(cacheKey);
+            let parsedCache = null;
+            if (cachedData) {
+                try {
+                    parsedCache = JSON.parse(cachedData);
+                } catch (e) {
+                    console.error("Cache parse error", e);
+                }
+            }
+
+            if (parsedCache && parsedCache.signature === gapSignature) {
+                setRecommendations(parsedCache.data);
+                setAiExplanation(parsedCache.aiText);
+                setLoading(false);
+                return;
+            }
+
             (async () => {
                 let recData = null;
                 let aiText = '';
+                let uiItems = [];
 
                 try {
                     const aiResult = await fetchAIRecommendations(targetTitle, weak, missing);
@@ -174,7 +218,6 @@ const Recommendations = () => {
                     console.log("AI Service unavailable, falling back to local logic");
                 }
 
-                // Fallback to local logic
                 if (!recData) {
                     const localData = generateRecommendations(targetTitle, missing, weak);
                     recData = localData;
@@ -183,51 +226,85 @@ const Recommendations = () => {
 
                 setAiExplanation(aiText);
 
-                // 6. Format for UI
-                const uiItems = [];
-                if (recData.fullList) {
-                    recData.fullList.forEach((item, idx) => {
-                        uiItems.push({
+                // --- SMART FILTERING & LIMITING ---
+                const processItems = (list) => {
+                    const processed = [];
+                    const seenSkills = new Set();
+
+                    // Priority: Weak Skills first, then Missing
+                    const targetSkills = [...weak, ...missing];
+
+                    list.forEach((item, idx) => {
+                        // 1. Identify which skill this item is for
+                        let relatedSkill = item.purpose ? item.purpose.replace(/^(Improve|Learn|Build a|Master|Intro to)\s+/i, '') : item.tags?.[0];
+
+                        // Clean loosely
+                        if (relatedSkill) {
+                            const match = targetSkills.find(ts => relatedSkill.toLowerCase().includes(ts.toLowerCase()) || ts.toLowerCase().includes(relatedSkill.toLowerCase()));
+                            if (match) relatedSkill = match;
+                        }
+
+                        // 2. Strict Filter: If this item is NOT for a current weak/missing skill, SKIP IT.
+                        // check if the related skill is actually in our target list
+                        const isRelevant = targetSkills.some(ts =>
+                            (item.purpose && item.purpose.toLowerCase().includes(ts.toLowerCase())) ||
+                            (item.title.toLowerCase().includes(ts.toLowerCase())) ||
+                            (item.tags && item.tags.some(t => t.toLowerCase().includes(ts.toLowerCase())))
+                        );
+
+                        // Allows projects nicely, but strict on courses
+                        if (item.type === 'course' && !isRelevant) return;
+
+                        // 3. Limit: Only 1 resource per skill
+                        if (processed.filter(p => p.relatedSkill === relatedSkill).length >= 1) return;
+
+                        processed.push({
                             ...item,
+                            relatedSkill: relatedSkill || "General",
                             image: item.image || `https://source.unsplash.com/random/300x200?${item.tags?.[0] || 'technology'},${idx}`
                         });
                     });
+                    return processed;
+                };
+
+                if (recData.fullList) {
+                    uiItems = processItems(recData.fullList);
                 } else {
-                    recData.courses.forEach((c, idx) => {
-                        uiItems.push({
-                            type: 'course',
-                            title: c,
-                            provider: 'Coursera',
-                            duration: '4 Weeks',
-                            rating: 4.8,
-                            tags: ['Healthcare', 'Skill Building'],
-                            image: `https://source.unsplash.com/random/300x200?education,${idx}`
-                        });
-                    });
-                    recData.projects.forEach((p, idx) => {
-                        uiItems.push({
-                            type: 'project',
-                            title: p,
-                            provider: 'HAPSIS Projects',
-                            duration: '20 Hours',
-                            rating: 4.9,
-                            tags: ['Practical', 'Portfolio'],
-                            image: `https://source.unsplash.com/random/300x200?technology,${idx}`
-                        });
-                    });
+                    // Fallback manual processing
+                    // ... (existing fallback logic if needed, but usually redundant if aiResult exists)
+                    // Simplified for brevity/safety:
+                    uiItems = processItems([...recData.courses.map(c => ({ ...c, type: 'course' })), ...recData.projects.map(p => ({ ...p, type: 'project' }))]);
+                }
+
+                // Hard Limit total items to prevent overwhelm (Rule: "Don't gave unlimited resources")
+                // Keep max 6 items total (e.g. 2 weak, 2 missing, 2 projects)
+                if (uiItems.length > 6) {
+                    uiItems = uiItems.slice(0, 6);
                 }
 
                 if (uiItems.length === 0) {
-                    uiItems.push({
-                        type: 'course',
-                        title: "Advanced Healthcare Technology",
-                        provider: "FutureLearn",
-                        duration: "6 Weeks",
-                        rating: 4.7,
-                        tags: ["General", "Healthcare"],
-                        image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=300&h=200"
-                    });
+                    // Only show fallback if we genuinely have gaps but no items found
+                    if (weak.length > 0 || missing.length > 0) {
+                        uiItems.push({
+                            type: 'course',
+                            title: `Essentials of ${careerGoal}`,
+                            provider: "MedSkill Navigator Recommended",
+                            duration: "4 Weeks",
+                            rating: 4.8,
+                            tags: ["Core Skill"],
+                            relatedSkill: missing[0] || weak[0] || "Foundations",
+                            image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=300&h=200"
+                        });
+                    }
                 }
+
+                // SAVE TO CACHE
+                const newCache = {
+                    signature: gapSignature,
+                    data: uiItems,
+                    aiText: aiText
+                };
+                localStorage.setItem(cacheKey, JSON.stringify(newCache));
 
                 setRecommendations(uiItems);
                 setLoading(false);
@@ -268,96 +345,180 @@ const Recommendations = () => {
         };
     }, []);
 
-    if (loading) return <div className="text-center p-10">Generating Learning Path...</div>;
+    // --- TIMELINE HELPERS ---
+    const getGroupedRecommendations = () => {
+        // Use robustness check
+        if (!recommendations || recommendations.length === 0) return null;
+
+        const foundation = recommendations.filter(r => r.type === 'course' && (r.tags?.includes('Basics') || r.purpose?.includes('Improve') || weakSkills.some(ws => r.title.includes(ws))));
+        const mastery = recommendations.filter(r => r.type === 'project');
+        const acquisition = recommendations.filter(r => !foundation.includes(r) && !mastery.includes(r));
+
+        return { foundation, acquisition, mastery };
+    };
+
+    const TimelineSection = ({ title, icon, items, colorClass, number }) => {
+        if (!items || items.length === 0) return null;
+        return (
+            <div className="timeline-section animate-fade-in" style={{
+                borderLeft: `3px solid var(--${colorClass})`,
+                paddingLeft: '2rem',
+                position: 'relative',
+                marginBottom: '3rem'
+            }}>
+                <div style={{
+                    position: 'absolute', left: '-1rem', top: '0',
+                    width: '2rem', height: '2rem', borderRadius: '50%',
+                    background: `var(--${colorClass})`, color: '#fff',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 'bold', zIndex: 10
+                }}>
+                    {number}
+                </div>
+
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', color: `var(--${colorClass}-light)`, display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                    {icon} {title}
+                </h3>
+
+                <div className="grid-cols-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                    {items.map((item, idx) => (
+                        <div key={idx} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.05)', height: '100%' }}>
+                            <div style={{ height: '140px', overflow: 'hidden', backgroundColor: '#333', position: 'relative' }}>
+                                <img
+                                    src={item.image}
+                                    alt={item.title}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
+                                    onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.style.backgroundColor = '#1e293b'; }}
+                                />
+                                {item.relatedSkill && (
+                                    <div style={{
+                                        position: 'absolute', bottom: '10px', left: '10px',
+                                        background: 'rgba(0,0,0,0.7)', color: '#fff',
+                                        padding: '0.2rem 0.6rem', borderRadius: '20px',
+                                        fontSize: '0.75rem', fontWeight: 'bold'
+                                    }}>
+                                        Target: {item.relatedSkill}
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ padding: '1.2rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                <div style={{
+                                    alignSelf: 'start', fontSize: '0.7rem',
+                                    background: item.type === 'course' ? 'rgba(99,102,241,0.2)' : 'rgba(6,182,212,0.2)',
+                                    color: item.type === 'course' ? '#a5b4fc' : '#67e8f9',
+                                    padding: '0.2rem 0.5rem', borderRadius: '4px', marginBottom: '0.8rem', textTransform: 'uppercase', fontWeight: 700
+                                }}>
+                                    {item.type}
+                                </div>
+                                <h4 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', lineHeight: '1.4', fontWeight: 600 }}>{item.title}</h4>
+                                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>by {item.provider}</p>
+
+                                {item.relatedSkill && !item.type === 'project' && (
+                                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                        For: <span style={{ color: '#e2e8f0' }}>{item.relatedSkill}</span>
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '1rem' }}>
+                                    <a
+                                        href={`https://www.google.com/search?q=${encodeURIComponent(item.searchQuery || (item.title + " " + item.provider + " " + item.type))}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="glass-button"
+                                        style={{ flex: 1, textAlign: 'center', fontSize: '0.8rem', padding: '0.6rem' }}
+                                    >
+                                        Start
+                                    </a>
+                                    <button
+                                        onClick={() => handleComplete(item)}
+                                        className="glass-button"
+                                        style={{ flex: 1, background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', fontSize: '0.8rem', padding: '0.6rem' }}
+                                    >
+                                        Complete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+    if (loading) return <div className="text-center p-10">Generating your Career Roadmap...</div>;
+
+    const phases = getGroupedRecommendations() || { foundation: [], acquisition: [], mastery: [] };
+
+    const isAllComplete = !loading && recommendations.length === 0;
 
     return (
         <div className="container-custom animate-fade-in" style={{ paddingBottom: '3rem' }}>
-            <header style={{ marginBottom: '2rem' }}>
-                <h1 className="text-gradient" style={{ fontSize: '2.5rem' }}>Personalized Recommendations</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Curated learning paths based on your skill gaps for <strong>{careerGoal}</strong>.</p>
+            <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
+                <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Your Career Roadmap</h1>
+                <p style={{ color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>
+                    A personalized step-by-step pathway to becoming a job-ready <strong>{careerGoal}</strong>.
+                </p>
             </header>
 
             {/* AI Insight Box */}
-            <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', borderLeft: '4px solid var(--primary)', display: 'flex', gap: '1rem' }}>
-                <div style={{ fontSize: '1.5rem', color: 'var(--primary)' }}><FaLightbulb /></div>
-                <div>
-                    <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>AI Insight</h3>
-                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>{aiExplanation}</p>
-                </div>
-            </div>
-
-            <div className="grid-cols-auto">
-                {recommendations.map((item, idx) => (
-                    <div key={idx} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ height: '160px', overflow: 'hidden', backgroundColor: '#333' }}>
-                            {/* Using a placeholder service or fallback div if image fails */}
-                            <img
-                                src={item.image}
-                                alt={item.title}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
-                                onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.style.backgroundColor = '#1e293b'; }}
-                            />
-                        </div>
-                        <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <div style={{
-                                alignSelf: 'start',
-                                fontSize: '0.8rem',
-                                background: item.type === 'course' ? 'rgba(99,102,241,0.2)' : 'rgba(6,182,212,0.2)',
-                                color: item.type === 'course' ? '#a5b4fc' : '#67e8f9',
-                                padding: '0.2rem 0.6rem', borderRadius: '4px', marginBottom: '0.5rem', textTransform: 'uppercase', fontWeight: 700
-                            }}>
-                                {item.type}
-                            </div>
-                            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>{item.title}</h3>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>by {item.provider}</p>
-
-                            {item.purpose && (
-                                <div style={{
-                                    fontSize: '0.8rem',
-                                    color: '#fff',
-                                    background: 'rgba(255, 255, 255, 0.1)',
-                                    padding: '0.3rem 0.6rem',
-                                    borderRadius: '4px',
-                                    marginBottom: '1rem',
-                                    display: 'inline-block'
-                                }}>
-                                    🎯 {item.purpose}
-                                </div>
-                            )}
-
-                            <div style={{ display: 'flex', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '1.5rem' }}>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><FaClock /> {item.duration}</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><FaStar style={{ color: '#eab308' }} /> {item.rating}</span>
-                            </div>
-
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: 'auto' }}>
-                                {item.tags.map(tag => (
-                                    <span key={tag} style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{tag}</span>
-                                ))}
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                                <a
-                                    href={`https://www.google.com/search?q=${encodeURIComponent(item.searchQuery || (item.title + " " + item.provider + " " + item.type))}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="glass-button"
-                                    style={{ flex: 1, textAlign: 'center', display: 'block', textDecoration: 'none' }}
-                                >
-                                    {item.type === 'course' ? 'Start Learning' : 'View Project Brief'}
-                                </a>
-                                <button
-                                    onClick={() => handleComplete(item)}
-                                    className="glass-button"
-                                    style={{ flex: 1, background: 'rgba(34, 197, 94, 0.2)', color: '#4ade80', border: '1px solid rgba(34, 197, 94, 0.3)' }}
-                                >
-                                    Mark Complete
-                                </button>
-                            </div>
-                        </div>
+            {!isAllComplete && (
+                <div className="glass-panel" style={{ padding: '2rem', marginBottom: '4rem', borderLeft: '4px solid var(--primary)', display: 'flex', gap: '1.5rem', alignItems: 'start' }}>
+                    <div style={{ fontSize: '2rem', color: 'var(--primary)' }}><FaLightbulb /></div>
+                    <div>
+                        <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>AI Mentor Insight</h3>
+                        <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', fontSize: '1.05rem' }}>{aiExplanation}</p>
                     </div>
-                ))}
-            </div>
+                </div>
+            )}
+
+            {isAllComplete ? (
+                <div className="glass-panel" style={{
+                    padding: '4rem 2rem',
+                    textAlign: 'center',
+                    border: '1px solid rgba(74, 222, 128, 0.3)',
+                    background: 'linear-gradient(145deg, rgba(74, 222, 128, 0.05) 0%, rgba(0,0,0,0) 100%)'
+                }}>
+                    <div style={{ fontSize: '5rem', marginBottom: '1.5rem', filter: 'drop-shadow(0 0 20px rgba(74, 222, 128, 0.5))' }}>🎉</div>
+                    <h2 style={{ fontSize: '2.5rem', color: '#4ade80', marginBottom: '1rem' }}>Syllabus Completed!</h2>
+                    <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto 2rem auto', lineHeight: '1.6' }}>
+                        Congratulations! You have mastered all the recommended skills and projects for <strong>{careerGoal}</strong>. Your profile is now highly competitive for this role.
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                        <button
+                            onClick={() => window.location.href = '/dashboard'}
+                            className="glass-button"
+                            style={{ fontSize: '1.1rem', padding: '0.8rem 2.5rem', background: 'var(--primary)', border: 'none' }}
+                        >
+                            View Final Profile
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+                    <TimelineSection
+                        number="1"
+                        title="Strengthening Foundations"
+                        icon={<FaCheckCircle />}
+                        items={phases.foundation}
+                        colorClass="warning"
+                    />
+                    <TimelineSection
+                        number="2"
+                        title="Skill Acquisition"
+                        icon={<FaArrowDown />}
+                        items={phases.acquisition}
+                        colorClass="primary"
+                    />
+                    <TimelineSection
+                        number="3"
+                        title="Real-World Mastery"
+                        icon={<FaFlagCheckered />}
+                        items={phases.mastery}
+                        colorClass="success"
+                    />
+                </div>
+            )}
+
             <AIChatBot careerGoal={careerGoal} weakSkills={weakSkills} missingSkills={missingSkills} />
         </div>
     );

@@ -213,7 +213,7 @@ const Dashboard = () => {
                         </div>
                         <div className="user-details">
                             <h1 className="user-greeting">
-                                Welcome back, <span className="user-name">{userData?.name || 'User'}</span>
+                                Welcome back, <span className="user-name">{userData?.name || auth.currentUser?.displayName || 'User'}</span>
                             </h1>
                             <div className="user-target">
                                 <span className="target-icon"><FaTrophy /></span>
@@ -299,7 +299,7 @@ const Dashboard = () => {
                                 <PolarGrid stroke="rgba(255,255,255,0.1)" />
                                 <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                                 <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                <Radar name="My Level" dataKey="A" stroke="#06b6d4" strokeWidth={3} fill="#06b6d4" fillOpacity={0.4} />
+                                <Radar name="My Level" dataKey="A" stroke="#22c55e" strokeWidth={3} fill="#22c55e" fillOpacity={0.4} />
                                 <Radar name="Required" dataKey="B" stroke="#ec4899" strokeWidth={2} fill="transparent" strokeDasharray="5 5" />
                                 <Legend wrapperStyle={{ paddingTop: '10px' }} />
                                 <Tooltip
